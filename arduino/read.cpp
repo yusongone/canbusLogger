@@ -1,11 +1,27 @@
 #include "read.h"
-#include <defaults.h>
-#include <mcp2515.h>
-#include <mcp2515_defs.h>
-#include <global.h>
 
-char ecu_req(unsigned char pid,  char *buffer) 
-{
+QueueArray <char> canbusQueue;
+char ecu_req();
+
+receiveHandler r;
+
+void CanQueue::request(unsigned char pid){
+ // QueneAreay
+ if(canbusQueue.isEmpty()){
+  canbusQueue.enqueue(pid);
+  ecu_req();
+ }else{
+  canbusQueue.enqueue(pid);
+ }
+}
+
+void CanQueue::receiveData(receiveHandler f){
+  r = f;
+}
+
+
+char ecu_req(){
+  char pid = canbusQueue.front();
   tCAN message;
   float engine_data;
   int timeout = 0;
@@ -29,6 +45,13 @@ char ecu_req(unsigned char pid,  char *buffer)
   if (mcp2515_send_message(&message)) { }
   if (mcp2515_check_message()) {
     if (mcp2515_get_message(&message)) {
+      r(&message);
+      canbusQueue.dequeue();
+      if(!canbusQueue.isEmpty()){
+        ecu_req();
+      }
     }
   }
 }
+
+CanQueue CQ;
