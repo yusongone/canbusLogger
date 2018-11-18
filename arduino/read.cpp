@@ -25,8 +25,6 @@ void getDataSuccess(tCAN *msg){
   r(msg);
   canbusQueue.dequeue();
   if(!canbusQueue.isEmpty()){
-    // delay(90);
-    Serial.print("sss");
     ecu_req(canbusQueue.front());
   }
 }
@@ -49,16 +47,17 @@ char ecu_req(unsigned char pid){
   Serial.print(pid);
   Serial.print("-");
   mcp2515_bit_modify(CANCTRL, (1<<REQOP2)|(1<<REQOP1)|(1<<REQOP0), 0);
-  Serial.print("2");
-  if (mcp2515_send_message(&message)) { }
-  Serial.print("3");
-  while(mcp2515_check_message()) {
-    Serial.print("&");
-    if (mcp2515_get_message(&message)) {
-     getDataSuccess(&message);
+  uint8_t sendResult = mcp2515_send_message(&message);
+  Serial.print(sendResult);
+  Serial.print(",");
+  if (sendResult != 0) {
+    if(mcp2515_check_message()) {
+      Serial.print("&");
+      if (mcp2515_get_message(&message)) {
+        getDataSuccess(&message);
+      }
     }
   }
-
 }
 
 CanQueue CQ;

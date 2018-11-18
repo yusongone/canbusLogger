@@ -29,7 +29,6 @@
 /* C++ wrapper */
 CanbusClass::CanbusClass() {
 
- 
 }
 char CanbusClass::message_rx(unsigned char *buffer) {
 		tCAN message;
