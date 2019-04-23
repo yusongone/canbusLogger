@@ -7,7 +7,7 @@
 #include "config.h"
 
 
-typedef void (*parseProtocol)(tCAN *message);
+typedef void (*parseProtocol)(tCAN *message,String &t);
 
 struct Msg{
   int id;
@@ -16,39 +16,37 @@ struct Msg{
   unsigned long requestTime;
   unsigned long lastUpdateTime;
   parseProtocol parser;
-} fule, speed,engine_rpm,throttle;
+} fule, speed,engine_rpm,throttle,dis;
 
 
-const int elementCount=4;
+const int elementCount=5;
 
 Msg element[elementCount];
 
-void fule_parse(tCAN *msg){
+void fule_parse(tCAN *msg,String &str){
   float t =  float(msg->data[3] * 100)/255;
-  Serial.print("{\"fule\":");
-  Serial.print(t);
-  Serial.print("}");
+  str+="{\"fule\":"+String(t)+"}";
 }
 
-void speed_parse(tCAN *msg){
+void speed_parse(tCAN *msg,String &str){
   int t =  msg->data[3] ;
-  Serial.print("{\"speed\":");
-  Serial.print(t);
-  Serial.print("}");
+  str+="{\"speed\":"+String(t)+"}";
 }
 
-void engine_rpm_parse(tCAN *msg){
+void engine_rpm_parse(tCAN *msg,String &str){
   int t =  (256*msg->data[3] + msg->data[4])/4 ;
-  Serial.print("{\"rpm\":");
-  Serial.print(t);
-  Serial.print("}");
+  str+="{\"rpm\":"+String(t)+"}";
+  return "";
 }
 
-void throttle_rpm_parse(tCAN *msg){
+void throttle_rpm_parse(tCAN *msg, String &str){
   float t = float(msg->data[3]*100)/255;
-  Serial.print("{\"throttle\":");
-  Serial.print(t);
-  Serial.print("}");
+  str+="{\"thr\":"+String(t)+"}";
+}
+
+void dis_parse(tCAN *msg, String &str){
+  float t = float(msg->data[3]*256) + msg->data[4];
+  str+="{\"dis\":"+String(t)+"}";
 }
 
 
@@ -60,24 +58,29 @@ void setup(){
   element[0].updateIntervalTime=1000*30;
   element[0].parser=fule_parse;
 
-  element[1]=speed;
-  element[1].id=CAR_SPEED;
-  element[1].updateIntervalTime=500;
-  element[1].parser=speed_parse;
+  element[1]=dis;
+  element[1].id=DISTANCE_TRAVELED_SINCE_CODE_CLEARED;
+  element[1].updateIntervalTime=1000*30;
+  element[1].parser=dis_parse;
 
-  element[2]=engine_rpm;
-  element[2].id=ENGINE_RPM;
+  element[2]=speed;
+  element[2].id=CAR_SPEED;
   element[2].updateIntervalTime=500;
-  element[2].parser=engine_rpm_parse;
+  element[2].parser=speed_parse;
 
-  element[3]=throttle;
-  element[3].id=THROTTLE;
+  element[3]=engine_rpm;
+  element[3].id=ENGINE_RPM;
   element[3].updateIntervalTime=500;
-  element[3].parser=throttle_rpm_parse;
+  element[3].parser=engine_rpm_parse;
+
+  element[4]=throttle;
+  element[4].id=THROTTLE;
+  element[4].updateIntervalTime=500;
+  element[4].parser=throttle_rpm_parse;
 
 
 
-  Serial.begin(9600); // For debug use
+  Serial.begin(115200); // For debug use
   Serial.println("CAN Read - Testing receival of CAN Bus message");  
   delay(1000);
   
@@ -137,32 +140,29 @@ void getter(){
     getterTime=temp;
     if(mcp2515_check_message()) {
       if (mcp2515_get_message(&mes)) {
+          String t ="";
           if(252 == mes.data[2]){
             /*
             Serial.print("car");
             Serial.println(mes.data[0]);
             */
+            t ="{\"pow\":"+String(mes.data[0])+"}";
           }else{
             for(int i =0; i<elementCount;i++){
                 // element[i].values= &message;
                 if(element[i].id == mes.data[2]){
-                  element[i].parser(&mes);
+                  element[i].parser(&mes, t);
                   break;
                 }
             }
           }
+          Serial.println(t);
       }
     }
   }
 }
 
 void loop(){
-  /*
   getter();
   sender();
-  */
-  Serial.print("{\"throttle\":");
-  Serial.print(12.34);
-  Serial.print("}");
- delay(125);
 }
