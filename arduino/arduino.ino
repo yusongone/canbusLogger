@@ -20,6 +20,7 @@ struct Msg{
 
 
 const int elementCount=5;
+bool pin13=false;
 
 Msg element[elementCount];
 
@@ -36,7 +37,6 @@ void speed_parse(tCAN *msg,String &str){
 void engine_rpm_parse(tCAN *msg,String &str){
   int t =  (256*msg->data[3] + msg->data[4])/4 ;
   str+="{\"rpm\":"+String(t)+"}";
-  return "";
 }
 
 void throttle_rpm_parse(tCAN *msg, String &str){
@@ -80,9 +80,11 @@ void setup(){
 
 
 
-  Serial.begin(115200); // For debug use
+//  Serial.begin(115200); // For debug use
+  Serial.begin(9600); // For debug use
   Serial.println("CAN Read - Testing receival of CAN Bus message");  
   delay(1000);
+  pinMode(8, OUTPUT);
   
   if(Canbus.init(CANSPEED_500))  //Initialise MCP2515 CAN controller at the specified speed
     Serial.println("CAN Init ok");
@@ -140,6 +142,7 @@ void getter(){
     getterTime=temp;
     if(mcp2515_check_message()) {
       if (mcp2515_get_message(&mes)) {
+          pin13=!pin13;
           String t ="";
           if(252 == mes.data[2]){
             /*
@@ -162,7 +165,18 @@ void getter(){
   }
 }
 
+unsigned long pingTime;
+void SerialPing(){
+  unsigned long temp = millis();
+  if( (temp - pingTime) > 1000 ){ 
+    pingTime=temp;
+    Serial.println("{\"ping\":1000}");
+  }
+}
+
 void loop(){
   getter();
   sender();
+  SerialPing();
+  digitalWrite(8, pin13);
 }
